@@ -2,8 +2,8 @@ name: IDFM Bus 5150 Cancellation Monitor
 
 on:
   schedule:
-    # Temporary test schedule: Runs every 5 minutes 24/7 to capture all live @SQY_IDFM tweets
-    - cron: '*/5 * * * *'
+    # Optimized 5-min cron offset to bypass GitHub top-of-hour queue congestion
+    - cron: '1,6,11,16,21,26,31,36,41,46,51,56 * * * *'
   workflow_dispatch: # Allows manual trigger anytime from GitHub UI
 
 jobs:
