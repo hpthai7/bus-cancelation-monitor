@@ -2,8 +2,8 @@ name: IDFM Bus 5150 Cancellation Monitor
 
 on:
   schedule:
-    # Optimized 5-min cron offset to bypass GitHub top-of-hour queue congestion
-    - cron: '1,6,11,16,21,26,31,36,41,46,51,56 * * * *'
+    # Standard 5-minute interval cron
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Allows manual trigger anytime from GitHub UI
 
 jobs:
