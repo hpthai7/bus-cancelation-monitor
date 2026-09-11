@@ -20,7 +20,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install --production
+        run: npm ci --omit=dev
 
       - name: Run IDFM Bus 5150 Monitor
         env:
