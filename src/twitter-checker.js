@@ -54,19 +54,19 @@ export async function checkTwitterAlerts(allTripsMode = true) {
             // Bus 5150 alert!
             const trip = resolveTrip(timeStr);
             alertsFound.push({
-              title: `🚨 TWITTER @${TWITTER_HANDLE} — BUS 5150 SUPPRIMÉ`,
+              title: `🚨 X (@${TWITTER_HANDLE}) — BUS 5150 SUPPRIMÉ`,
               description: rawText,
               tripInfo: trip,
-              source: `Twitter / X (@${TWITTER_HANDLE})`,
+              source: `X / Twitter (@${TWITTER_HANDLE})`,
               color: 0xEF4444 // Red
             });
           } else if (allTripsMode) {
             // Temporary all-trip monitoring mode: show alert for other SQY bus lines
             alertsFound.push({
-              title: `🟧 TWITTER @${TWITTER_HANDLE} — BUS ${lineNum} SUPPRIMÉ`,
+              title: `🟧 X (@${TWITTER_HANDLE}) — BUS ${lineNum} SUPPRIMÉ`,
               description: rawText,
               tripInfo: timeStr ? { direction: `Ligne ${lineNum}`, gaudi: timeStr, sqy: timeStr } : null,
-              source: `Twitter / X (@${TWITTER_HANDLE}) • Mode Temporaire Tous Trajets`,
+              source: `X / Twitter (@${TWITTER_HANDLE}) • Mode Temporaire Tous Trajets`,
               color: 0xF97316 // Orange
             });
           }
