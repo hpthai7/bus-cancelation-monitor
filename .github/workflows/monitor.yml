@@ -2,18 +2,22 @@ name: IDFM Bus 5150 Cancellation Monitor
 
 on:
   schedule:
-    # Standard 5-minute interval cron
-    - cron: '*/5 * * * *'
+    # Offset 5-min interval to bypass top-of-hour GitHub runner queue congestion
+    - cron: '2-57/5 * * * *'
   workflow_dispatch: # Allows manual trigger anytime from GitHub UI
 
 jobs:
   check-bus-5150:
     runs-on: ubuntu-latest
-    container:
-      image: node:22-alpine
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
 
       - name: Install Dependencies
         run: npm install --production
@@ -23,4 +27,6 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           IDFM_PRIM_TOKEN: ${{ secrets.IDFM_PRIM_TOKEN }}
           TWITTER_RSS_URL: ${{ secrets.TWITTER_RSS_URL }}
-        run: npm start
+        run: |
+          echo "🚀 Scheduled workflow triggered at $(date -u)"
+          npm start
