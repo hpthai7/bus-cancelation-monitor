@@ -6,6 +6,7 @@ import { resolveTrip } from "./schedule.js";
 
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || "";
 const IS_TEST = process.argv.includes("--test");
+const IS_MANUAL_RUN = process.env.GITHUB_EVENT_NAME === "workflow_dispatch" || process.argv.includes("--force");
 
 async function run() {
   console.log("🚀 Starting IDFM Bus 5150 Monitor check...");
@@ -32,17 +33,28 @@ async function run() {
 
   const allAlerts = [...idfmAlerts, ...twitterAlerts];
 
-  if (allAlerts.length === 0) {
-    console.log("✅ Check finished. No canceled trips detected for Bus 5150 in active commute windows.");
+  if (allAlerts.length > 0) {
+    console.log(`🚨 Detected ${allAlerts.length} canceled trip alert(s)! Dispatching to Discord...`);
+    for (const alert of allAlerts) {
+      await sendDiscordAlert(alert, DISCORD_WEBHOOK_URL);
+    }
+    console.log("🎉 Canceled trip alerts sent to Discord.");
     return;
   }
 
-  // Send alerts to Discord Webhook
-  for (const alert of allAlerts) {
-    await sendDiscordAlert(alert, DISCORD_WEBHOOK_URL);
-  }
+  // If no canceled trips were found...
+  console.log("✅ Check finished. No canceled trips detected for Bus 5150 in active commute windows.");
 
-  console.log(`🎉 Check finished. Dispatched ${allAlerts.length} alert(s) to Discord.`);
+  // If triggered MANUALLY by user ("Run workflow" button), send a status update to Discord!
+  if (IS_MANUAL_RUN) {
+    console.log("📱 Manual run detected: Sending status report to Discord...");
+    await sendDiscordAlert({
+      title: "🟢 Vérification Manuelle Bus 5150",
+      description: "Aucun trajet supprimé détecté. Tous les bus 5150 de vos plages horaires circulent normalement.",
+      source: "Vérification Manuelle • IDFM 5150 Monitor",
+      color: 0x10B981 // Green
+    }, DISCORD_WEBHOOK_URL);
+  }
 }
 
 run().catch(err => {
