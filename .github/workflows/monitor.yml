@@ -1,6 +1,9 @@
 name: IDFM Bus 5150 Cancellation Monitor
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     # Offset 5-min interval to bypass top-of-hour GitHub runner queue congestion
     - cron: '2-57/5 * * * *'
