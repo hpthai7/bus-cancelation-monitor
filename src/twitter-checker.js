@@ -26,11 +26,23 @@ export async function checkTwitterAlerts(allTripsMode = true) {
       if (!res.ok) continue;
 
       const xmlText = await res.text();
-      const itemRegex = /<item>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/gi;
+      const itemRegex = /<item>[\s\S]*?<\/item>/gi;
       let match;
 
       while ((match = itemRegex.exec(xmlText)) !== null) {
-        const rawText = match[1].replace(/<[^>]+>/g, "").trim();
+        const itemXml = match[0];
+        const titleMatch = itemXml.match(/<title>([\s\S]*?)<\/title>/i);
+        const descMatch = itemXml.match(/<description>([\s\S]*?)<\/description>/i);
+        const contentMatch = itemXml.match(/<content:encoded>([\s\S]*?)<\/content:encoded>/i);
+
+        const rawTitle = titleMatch ? titleMatch[1] : "";
+        const rawDesc = descMatch ? descMatch[1] : "";
+        const rawContent = contentMatch ? contentMatch[1] : "";
+
+        const rawText = `${rawTitle} ${rawDesc} ${rawContent}`
+          .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, "$1")
+          .replace(/<[^>]+>/g, "")
+          .trim();
         const lowerText = rawText.toLowerCase();
         
         // Cancellation keywords used by @SQY_IDFM
