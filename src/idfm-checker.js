@@ -5,6 +5,24 @@ const IDFM_PRIM_API_KEY = process.env.IDFM_PRIM_TOKEN || "";
 const LINE_5150_REPORTS_URL = "https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/lines/line:IDFM:C01746/line_reports";
 const PRIM_DISRUPTIONS_URL = "https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/disruptions";
 
+function cleanText(raw) {
+  if (!raw) return "";
+  return raw
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\n\s*\n/g, "\n")
+    .trim();
+}
+
+function extractLineNumber(text) {
+  const match = text.match(/(?:Ligne|Line|#Ligne)\s*([A-Z0-9]+)/i);
+  if (match) return match[1];
+  if (text.includes("5150")) return "5150";
+  return "Réseau";
+}
+
 export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
   const alertsFound = [];
 
@@ -24,7 +42,8 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
       const disruptions = data?.disruptions || [];
 
       for (const d of disruptions) {
-        const messages = (d?.messages || []).map(m => m?.text || "").join(" ");
+        const rawMessages = (d?.messages || []).map(m => m?.text || "").join(" ");
+        const messages = cleanText(rawMessages);
         const lowerText = messages.toLowerCase();
 
         const isCancelMatch = lowerText.includes("supprim") || lowerText.includes("annul") || lowerText.includes("non assur") || lowerText.includes("pas assur");
@@ -59,14 +78,14 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
         const disruptions = data?.disruptions || [];
 
         for (const d of disruptions) {
-          const messages = (d?.messages || []).map(m => m?.text || "").join(" ");
+          const rawMessages = (d?.messages || []).map(m => m?.text || "").join(" ");
+          const messages = cleanText(rawMessages);
           const lowerText = messages.toLowerCase();
 
           const isCancelMatch = lowerText.includes("supprim") || lowerText.includes("annul") || lowerText.includes("non assur") || lowerText.includes("pas assur");
 
           if (isCancelMatch) {
-            const lineMatch = messages.match(/Ligne\s*(\d+)|line\s*(\d+)|#Ligne(\d+)|(\d{4})/i);
-            const lineNum = lineMatch ? (lineMatch[1] || lineMatch[2] || lineMatch[3] || lineMatch[4]) : "Réseau";
+            const lineNum = extractLineNumber(messages);
             const isBus5150 = lineNum === BUS_LINE || messages.includes("5150");
 
             if (!isBus5150) {
