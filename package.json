@@ -1,0 +1,14 @@
+{
+  "name": "idfm-5150-discord-bot",
+  "version": "1.0.0",
+  "description": "Real-time IDFM Bus 5150 canceled trip notification bot for Discord",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node src/index.js --test"
+  },
+  "dependencies": {
+    "gtfs-realtime-bindings": "^1.1.1"
+  }
+}

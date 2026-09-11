@@ -1,0 +1,28 @@
+name: IDFM Bus 5150 Cancellation Monitor
+
+on:
+  schedule:
+    # Runs every 5 minutes automatically for free
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI anytime
+
+jobs:
+  check-bus-5150:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install --production
+
+      - name: Run IDFM Bus 5150 Monitor
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          IDFM_PRIM_TOKEN: ${{ secrets.IDFM_PRIM_TOKEN }}
+        run: npm start
