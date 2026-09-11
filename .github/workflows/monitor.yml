@@ -5,8 +5,8 @@ on:
     branches:
       - main
   schedule:
-    # Offset 5-min interval to bypass top-of-hour GitHub runner queue congestion
-    - cron: '2-57/5 * * * *'
+    # Explicit 5-minute interval offset
+    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
   workflow_dispatch: # Allows manual trigger anytime from GitHub UI
 
 jobs:
