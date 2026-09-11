@@ -1,48 +1,63 @@
-// Twitter / X Announcement Parser for SQYBUS / IDFM
+// Twitter / X Announcement Parser for SQYBUS (@SQY_IDFM)
 import { BUS_LINE, isInCommuteWindow, resolveTrip } from "./schedule.js";
 
-// Uses Nitter RSS bridge or Twitter public RSS endpoints
-const TWITTER_RSS_URLS = [
-  "https://nitter.net/StQuentin_IDFM/rss",
-  "https://nitter.poast.org/StQuentin_IDFM/rss"
-];
+export const TWITTER_HANDLE = "SQY_IDFM";
+
+// Configurable RSS endpoint or fallbacks for @SQY_IDFM
+const RSS_ENDPOINTS = [
+  process.env.TWITTER_RSS_URL || "",
+  `https://nitter.privacydev.net/${TWITTER_HANDLE}/rss`,
+  `https://nitter.poast.org/${TWITTER_HANDLE}/rss`,
+  `https://nitter.download/${TWITTER_HANDLE}/rss`,
+  `https://nitter.cz/${TWITTER_HANDLE}/rss`,
+  `https://nitter.x86.men/${TWITTER_HANDLE}/rss`
+].filter(Boolean);
 
 export async function checkTwitterAlerts() {
   const alertsFound = [];
 
-  for (const rssUrl of TWITTER_RSS_URLS) {
+  for (const rssUrl of RSS_ENDPOINTS) {
     try {
-      const res = await fetch(rssUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const res = await fetch(rssUrl, { 
+        headers: { 
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" 
+        } 
+      });
       if (!res.ok) continue;
 
       const xmlText = await res.text();
-      // Match items in RSS xml
       const itemRegex = /<item>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/gi;
       let match;
+
       while ((match = itemRegex.exec(xmlText)) !== null) {
-        const text = match[1].replace(/<[^>]+>/g, "").trim();
+        const rawText = match[1].replace(/<[^>]+>/g, "").trim();
+        const lowerText = rawText.toLowerCase();
         
-        // Filter for line 5150 & cancellation terms
-        if ((text.includes("5150") || text.includes("SQYBUS")) && 
-            (text.includes("supprim") || text.includes("non assur") || text.includes("annul"))) {
-          
-          const timeMatch = text.match(/(\d{1,2})[h:](\d{2})/i);
-          const timeStr = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : null;
+        // Filter for line 5150 & cancellation terms used by @SQY_IDFM
+        const isLineMatch = rawText.includes("5150") || rawText.includes("Ligne5150") || rawText.includes("SQY");
+        const isCancelMatch = lowerText.includes("ne sera pas assur") || 
+                              lowerText.includes("non assur") || 
+                              lowerText.includes("supprim") || 
+                              lowerText.includes("annul");
+
+        if (isLineMatch && isCancelMatch) {
+          const timeMatch = rawText.match(/(\d{1,2})[h:](\d{2})/i);
+          const timeStr = timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : null;
 
           if (!timeStr || isInCommuteWindow(timeStr)) {
             alertsFound.push({
-              title: `🚨 Twitter @StQuentin_IDFM: Bus ${BUS_LINE}`,
-              description: text,
+              title: `🚨 Twitter @${TWITTER_HANDLE}: Bus ${BUS_LINE} Supprimé`,
+              description: rawText,
               tripInfo: resolveTrip(timeStr),
-              source: "Twitter / X (@StQuentin_IDFM)"
+              source: `Twitter / X (@${TWITTER_HANDLE})`
             });
-            break; // Stop after first match to avoid duplicates
+            break; // Matched primary alert
           }
         }
       }
       if (alertsFound.length > 0) break;
     } catch (err) {
-      // Ignore network fallback errors quietly
+      // Ignore fallback mirror errors quietly
     }
   }
 

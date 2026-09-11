@@ -28,24 +28,38 @@ async function run() {
   // 1. Check IDFM PRIM Open Data API
   const idfmAlerts = await checkIdfmRealtimeAlerts();
 
-  // 2. Check Twitter / X Feed
+  // 2. Check Twitter / X Feed (@SQY_IDFM)
   const twitterAlerts = await checkTwitterAlerts();
 
-  const allAlerts = [...idfmAlerts, ...twitterAlerts];
+  const rawAlerts = [...idfmAlerts, ...twitterAlerts];
 
-  if (allAlerts.length > 0) {
-    console.log(`🚨 Detected ${allAlerts.length} canceled trip alert(s)! Dispatching to Discord...`);
-    for (const alert of allAlerts) {
+  // Deduplicate alerts by trip key so you only get ONE single notification per canceled trip!
+  const uniqueAlertsMap = new Map();
+  for (const alert of rawAlerts) {
+    const key = alert.tripInfo 
+      ? `${alert.tripInfo.direction}-${alert.tripInfo.gaudi}` 
+      : alert.description.substring(0, 50);
+      
+    if (!uniqueAlertsMap.has(key)) {
+      uniqueAlertsMap.set(key, alert);
+    }
+  }
+
+  const deduplicatedAlerts = Array.from(uniqueAlertsMap.values());
+
+  if (deduplicatedAlerts.length > 0) {
+    console.log(`🚨 Detected ${deduplicatedAlerts.length} unique canceled trip alert(s)! Dispatching to Discord...`);
+    for (const alert of deduplicatedAlerts) {
       await sendDiscordAlert(alert, DISCORD_WEBHOOK_URL);
     }
-    console.log("🎉 Canceled trip alerts sent to Discord.");
+    console.log("🎉 Unique canceled trip alerts sent to Discord.");
     return;
   }
 
   // If no canceled trips were found...
   console.log("✅ Check finished. No canceled trips detected for Bus 5150 in active commute windows.");
 
-  // If triggered MANUALLY by user ("Run workflow" button), send a status update to Discord!
+  // If triggered MANUALLY by user ("Run workflow" button), send a status report to Discord!
   if (IS_MANUAL_RUN) {
     console.log("📱 Manual run detected: Sending status report to Discord...");
     await sendDiscordAlert({
