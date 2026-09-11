@@ -22,4 +22,5 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           IDFM_PRIM_TOKEN: ${{ secrets.IDFM_PRIM_TOKEN }}
+          TWITTER_RSS_URL: ${{ secrets.TWITTER_RSS_URL }}
         run: npm start
