@@ -5,10 +5,10 @@ on:
     branches:
       - main
   schedule:
-    # Morning Commute Window (Mon-Fri 06:00-09:30 CEST = 04:00-07:30 UTC)
-    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 4-7 * * 1-5'
-    # Evening Commute Window (Mon-Fri 15:00-19:30 CEST = 13:00-17:30 UTC)
-    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 13-17 * * 1-5'
+    # Morning Commute Window (Mon, Tue, Thu, Fri 06:00-09:30 CEST = 04:00-07:30 UTC)
+    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 4-7 * * 1,2,4,5'
+    # Evening Commute Window (Mon, Tue, Thu, Fri 15:00-19:30 CEST = 13:00-17:30 UTC)
+    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 13-17 * * 1,2,4,5'
   workflow_dispatch: # Allows manual trigger anytime from GitHub UI
 
 jobs:
