@@ -27,6 +27,10 @@ export async function sendDiscordAlert(alertData, webhookUrl) {
     );
   }
 
+  embed.fields.push(
+    { name: "📡 Source API", value: `\`${source || "Île-de-France Mobilités API"}\``, inline: false }
+  );
+
   try {
     const res = await fetch(webhookUrl, {
       method: "POST",
