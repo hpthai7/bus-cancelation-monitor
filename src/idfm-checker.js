@@ -23,6 +23,24 @@ function extractLineNumber(text) {
   return "Réseau";
 }
 
+function isDisruptionActiveToday(disruption) {
+  if (disruption.status !== "active") return false;
+  
+  const todayYMD = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // e.g. "20260911"
+  const periods = disruption.application_periods || [];
+  
+  if (periods.length === 0) return true; // Default if no period specified
+
+  for (const p of periods) {
+    const begin = (p.begin || "").slice(0, 8);
+    const end = (p.end || "").slice(0, 8);
+    if (begin && end && begin <= todayYMD && todayYMD <= end) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
   const alertsFound = [];
 
@@ -42,6 +60,8 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
       const disruptions = data?.disruptions || [];
 
       for (const d of disruptions) {
+        if (!isDisruptionActiveToday(d)) continue; // Filter out past/expired disruptions
+
         const rawMessages = (d?.messages || []).map(m => m?.text || "").join(" ");
         const messages = cleanText(rawMessages);
         const lowerText = messages.toLowerCase();
@@ -78,6 +98,8 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
         const disruptions = data?.disruptions || [];
 
         for (const d of disruptions) {
+          if (!isDisruptionActiveToday(d)) continue; // Filter out past/expired disruptions
+
           const rawMessages = (d?.messages || []).map(m => m?.text || "").join(" ");
           const messages = cleanText(rawMessages);
           const lowerText = messages.toLowerCase();
