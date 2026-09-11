@@ -1,9 +1,16 @@
-// Verified IDFM PRIM API Checker (Navitia Line Reports & Disruptions)
+// Verified IDFM PRIM API Checker (Line 5150, SQY Network, Disruptions Bulk API)
 import { BUS_LINE, isInCommuteWindow, resolveTrip } from "./schedule.js";
 
 const IDFM_PRIM_API_KEY = process.env.IDFM_PRIM_TOKEN || "";
-const LINE_5150_REPORTS_URL = "https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/lines/line:IDFM:C01746/line_reports";
-const PRIM_DISRUPTIONS_URL = "https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/disruptions";
+
+// Correct PRIM Line ID for Bus 5150: line:IDFM:C01541
+const LINE_5150_REPORTS_URL = "https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/lines/line:IDFM:C01541/line_reports";
+
+// Network ID for Saint-Quentin-en-Yvelines: network:IDFM:1068
+const SQY_NETWORK_REPORTS_URL = "https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/networks/network:IDFM:1068/line_reports";
+
+// PRIM Disruptions Bulk API (Swagger endpoint)
+const PRIM_DISRUPTIONS_BULK_URL = "https://prim.iledefrance-mobilites.fr/marketplace/disruptions_bulk/disruptions/v2";
 
 function cleanText(raw) {
   if (!raw) return "";
@@ -24,12 +31,12 @@ function extractLineNumber(text) {
 }
 
 function isDisruptionActiveToday(disruption) {
-  if (disruption.status !== "active") return false;
+  if (disruption.status && disruption.status !== "active") return false;
   
   const todayYMD = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // e.g. "20260911"
-  const periods = disruption.application_periods || [];
+  const periods = disruption.application_periods || disruption.applicationPeriods || [];
   
-  if (periods.length === 0) return true; // Default if no period specified
+  if (periods.length === 0) return true;
 
   for (const p of periods) {
     const begin = (p.begin || "").slice(0, 8);
@@ -49,7 +56,7 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
     return alertsFound;
   }
 
-  // 1. Query Official IDFM PRIM Navitia Line Reports for Line 5150
+  // 1. Query Official PRIM Navitia Line Reports for Line 5150 (line:IDFM:C01541)
   try {
     const res = await fetch(LINE_5150_REPORTS_URL, {
       headers: { "apiKey": IDFM_PRIM_API_KEY }
@@ -60,7 +67,7 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
       const disruptions = data?.disruptions || [];
 
       for (const d of disruptions) {
-        if (!isDisruptionActiveToday(d)) continue; // Filter out past/expired disruptions
+        if (!isDisruptionActiveToday(d)) continue;
 
         const rawMessages = (d?.messages || []).map(m => m?.text || "").join(" ");
         const messages = cleanText(rawMessages);
@@ -76,7 +83,7 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
             title: `🚨 IDFM PRIM API — BUS 5150 SUPPRIMÉ`,
             description: messages,
             tripInfo: resolveTrip(timeStr),
-            source: "IDFM PRIM Official Open Data API (Line C01746)",
+            source: "IDFM PRIM API (Line C01541)",
             color: 0xEF4444 // Red
           });
         }
@@ -86,10 +93,10 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
     console.warn("Notice: PRIM Line Reports API query error:", err.message);
   }
 
-  // 2. Query General Disruptions API for all network lines
+  // 2. Query SQY Network Line Reports (network:IDFM:1068) for all SQY buses
   if (allTripsMode) {
     try {
-      const res = await fetch(`${PRIM_DISRUPTIONS_URL}?count=50`, {
+      const res = await fetch(SQY_NETWORK_REPORTS_URL, {
         headers: { "apiKey": IDFM_PRIM_API_KEY }
       });
 
@@ -98,7 +105,7 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
         const disruptions = data?.disruptions || [];
 
         for (const d of disruptions) {
-          if (!isDisruptionActiveToday(d)) continue; // Filter out past/expired disruptions
+          if (!isDisruptionActiveToday(d)) continue;
 
           const rawMessages = (d?.messages || []).map(m => m?.text || "").join(" ");
           const messages = cleanText(rawMessages);
@@ -110,24 +117,63 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
             const lineNum = extractLineNumber(messages);
             const isBus5150 = lineNum === BUS_LINE || messages.includes("5150");
 
-            if (!isBus5150) {
-              const timeMatch = messages.match(/(\d{1,2})[h:](\d{2})/i);
-              const timeStr = timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : null;
+            const timeMatch = messages.match(/(\d{1,2})[h:](\d{2})/i);
+            const timeStr = timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : null;
 
-              alertsFound.push({
-                title: `🟧 IDFM PRIM API — BUS ${lineNum} SUPPRIMÉ`,
-                description: messages,
-                tripInfo: timeStr ? { direction: `Ligne ${lineNum}`, gaudi: timeStr, sqy: timeStr } : null,
-                source: "IDFM PRIM API • Mode Temporaire Tous Trajets",
-                color: 0xF97316 // Orange
-              });
-            }
+            alertsFound.push({
+              title: isBus5150 ? `🚨 IDFM PRIM API — BUS 5150 SUPPRIMÉ` : `🟧 IDFM PRIM API — BUS ${lineNum} SUPPRIMÉ`,
+              description: messages,
+              tripInfo: isBus5150 ? resolveTrip(timeStr) : (timeStr ? { direction: `Ligne ${lineNum}`, gaudi: timeStr, sqy: timeStr } : null),
+              source: "IDFM PRIM API (Réseau SQY)",
+              color: isBus5150 ? 0xEF4444 : 0xF97316
+            });
           }
         }
       }
     } catch (err) {
-      console.warn("Notice: PRIM General Disruptions API query error:", err.message);
+      console.warn("Notice: PRIM SQY Network API query error:", err.message);
     }
+  }
+
+  // 3. Query PRIM Disruptions Bulk API (/marketplace/disruptions_bulk/disruptions/v2)
+  try {
+    const res = await fetch(PRIM_DISRUPTIONS_BULK_URL, {
+      headers: { "apiKey": IDFM_PRIM_API_KEY }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const disruptions = data?.disruptions || [];
+
+      for (const d of disruptions) {
+        if (!isDisruptionActiveToday(d)) continue;
+
+        const messages = cleanText(`${d.title || ""} ${d.message || ""}`);
+        const lowerText = messages.toLowerCase();
+
+        const isCancelMatch = lowerText.includes("supprim") || lowerText.includes("annul") || lowerText.includes("non assur") || lowerText.includes("pas assur");
+
+        if (isCancelMatch) {
+          const lineNum = extractLineNumber(messages);
+          const isBus5150 = lineNum === BUS_LINE || messages.includes("5150");
+
+          if (isBus5150 || allTripsMode) {
+            const timeMatch = messages.match(/(\d{1,2})[h:](\d{2})/i);
+            const timeStr = timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : null;
+
+            alertsFound.push({
+              title: isBus5150 ? `🚨 IDFM DISRUPTIONS BULK — BUS 5150 SUPPRIMÉ` : `🟧 IDFM DISRUPTIONS BULK — BUS ${lineNum} SUPPRIMÉ`,
+              description: messages,
+              tripInfo: isBus5150 ? resolveTrip(timeStr) : (timeStr ? { direction: `Ligne ${lineNum}`, gaudi: timeStr, sqy: timeStr } : null),
+              source: "IDFM PRIM Disruptions Bulk API",
+              color: isBus5150 ? 0xEF4444 : 0xF97316
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Notice: PRIM Disruptions Bulk API query error:", err.message);
   }
 
   return alertsFound;
