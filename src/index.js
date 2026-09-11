@@ -8,8 +8,8 @@ const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || "";
 const IS_TEST = process.argv.includes("--test");
 const IS_MANUAL_RUN = process.env.GITHUB_EVENT_NAME === "workflow_dispatch" || process.argv.includes("--force");
 
-// Temporary mode to monitor ALL lines & ALL trips from BOTH IDFM API & @SQY_IDFM Twitter!
-const ALL_TRIPS_TEMPORARY_MODE = true;
+// Set to false for production: monitor ONLY Bus 5150 commute trips
+const ALL_TRIPS_TEMPORARY_MODE = false;
 
 async function run() {
   console.log("🚀 Starting IDFM Bus Monitor check (All-Trips Temporary Test Mode - IDFM API + Twitter)...");
