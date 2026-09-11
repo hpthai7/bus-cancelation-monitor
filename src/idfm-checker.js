@@ -176,5 +176,61 @@ export async function checkIdfmRealtimeAlerts(allTripsMode = true) {
     console.warn("Notice: PRIM Disruptions Bulk API query error:", err.message);
   }
 
+  // 4. Query SIRI-Lite Live Stop Monitoring for Gaudi & Calmette stop points
+  const STOP_POINTS = [
+    { ref: "STIF:StopPoint:Q:20653:", name: "Gaudi (Guyancourt)" },
+    { ref: "STIF:StopPoint:Q:20659:", name: "Gaudi (Guyancourt)" },
+    { ref: "STIF:StopPoint:Q:4466:", name: "Calmette (Buc)" },
+    { ref: "STIF:StopPoint:Q:4467:", name: "Calmette (Buc)" }
+  ];
+
+  for (const stop of STOP_POINTS) {
+    try {
+      const res = await fetch(`https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${stop.ref}`, {
+        headers: { "apiKey": IDFM_PRIM_API_KEY }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const visits = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+
+        for (const visit of visits) {
+          const journey = visit?.MonitoredVehicleJourney;
+          const call = journey?.MonitoredCall;
+
+          if (!journey || !call) continue;
+
+          const lineRef = journey.LineRef?.value || "";
+          const isBus5150 = lineRef.includes("C01541");
+          const lineNum = isBus5150 ? "5150" : extractLineNumber(journey.LineName?.[0]?.value || journey.JourneyNote?.[0]?.value || "");
+
+          const isCancelled = call.DepartureStatus === "cancelled" || call.ArrivalStatus === "cancelled";
+
+          if (isCancelled && (isBus5150 || allTripsMode)) {
+            const aimedTimeISO = call.AimedDepartureTime || call.AimedArrivalTime || "";
+            let timeStr = null;
+            if (aimedTimeISO) {
+              const date = new Date(aimedTimeISO);
+              // Convert to Paris local HH:mm
+              timeStr = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+            }
+
+            const destName = call.DestinationDisplay?.[0]?.value || journey.DestinationName?.[0]?.value || "Destination inconnu";
+
+            alertsFound.push({
+              title: isBus5150 ? `🚨 SIRI-LITE LIVE — BUS 5150 SUPPRIMÉ` : `🟧 SIRI-LITE LIVE — BUS ${lineNum} SUPPRIMÉ`,
+              description: `Passage annulé en direct par Île-de-France Mobilités SIRI-Lite :\n• Arrêt : **${stop.name}**\n• Horaire prévu : **${timeStr || 'Non spécifié'}**\n• Direction : **${destName}**\n• Statut SIRI : **DepartureStatus = cancelled**`,
+              tripInfo: isBus5150 ? resolveTrip(timeStr) : (timeStr ? { direction: `Ligne ${lineNum}`, gaudi: timeStr, sqy: timeStr } : null),
+              source: `IDFM SIRI-Lite Live Stop Monitoring (${stop.name})`,
+              color: isBus5150 ? 0xEF4444 : 0xF97316
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`Notice: SIRI-Lite Stop Monitoring error for ${stop.name}:`, err.message);
+    }
+  }
+
   return alertsFound;
 }
