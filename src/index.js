@@ -8,11 +8,11 @@ const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || "";
 const IS_TEST = process.argv.includes("--test");
 const IS_MANUAL_RUN = process.env.GITHUB_EVENT_NAME === "workflow_dispatch" || process.argv.includes("--force");
 
-// Temporary mode: monitor ALL lines & ALL trips across SQY network to test API updates
-const ALL_TRIPS_TEMPORARY_MODE = true;
+// Set to false: monitor ONLY Bus 5150 commute trips
+const ALL_TRIPS_TEMPORARY_MODE = false;
 
 async function run() {
-  console.log("🚀 Starting IDFM Bus Monitor check (All-Trips Temporary Test Mode - IDFM API + Twitter)...");
+  console.log("🚀 Starting IDFM Bus 5150 Monitor check (IDFM PRIM APIs + SIRI-Lite + X)...");
 
   if (IS_TEST) {
     console.log("🧪 TEST MODE: Sending sample Discord test alert...");
@@ -28,10 +28,10 @@ async function run() {
     return;
   }
 
-  // 1. Check IDFM PRIM Open Data API (All Trips Mode)
+  // 1. Check IDFM PRIM Open Data API (Line 5150 Mode)
   const idfmAlerts = await checkIdfmRealtimeAlerts(ALL_TRIPS_TEMPORARY_MODE);
 
-  // 2. Check Twitter / X Feed (@SQY_IDFM) (All Trips Mode)
+  // 2. Check X Feed (@SQY_IDFM) (Line 5150 Mode)
   const twitterAlerts = await checkTwitterAlerts(ALL_TRIPS_TEMPORARY_MODE);
 
   const rawAlerts = [...idfmAlerts, ...twitterAlerts];
@@ -59,15 +59,15 @@ async function run() {
     return;
   }
 
-  console.log("✅ Check finished. No cancellation alerts detected at this moment.");
+  console.log("✅ Check finished. No Bus 5150 cancellation alerts detected at this moment.");
 
   // If triggered MANUALLY by user ("Run workflow" button), send a status report to Discord!
   if (IS_MANUAL_RUN) {
     console.log("📱 Manual run detected: Sending status report to Discord...");
     await sendDiscordAlert({
-      title: "🟢 Vérification Manuelle - Monitor Actif (IDFM API + Twitter)",
-      description: "Le moniteur temporaire 'Tous Trajets' (IDFM API & Twitter @SQY_IDFM) est actif et vérifie toutes les alertes toutes les 5 minutes.",
-      source: "Vérification Manuelle • Mode Test IDFM API + Twitter",
+      title: "🟢 Vérification Manuelle — Bus 5150 Monitor Actif",
+      description: "Le moniteur Bus 5150 est actif et vérifie la ligne 5150 toutes les 5 minutes (SIRI-Lite, Disruptions Bulk, API IDFM & X @SQY_IDFM).",
+      source: "Vérification Manuelle • IDFM 5150 Monitor",
       color: 0x10B981 // Green
     }, DISCORD_WEBHOOK_URL);
   }
