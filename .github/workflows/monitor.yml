@@ -2,10 +2,8 @@ name: IDFM Bus 5150 Cancellation Monitor
 
 on:
   schedule:
-    # Mon-Fri Morning window: 06:00 - 09:30 CEST (04:00 - 07:30 UTC) - Every 5 mins
-    - cron: '*/5 4-7 * * 1-5'
-    # Mon-Fri Afternoon/Evening window: 14:00 - 19:30 CEST (12:00 - 17:30 UTC) - Every 5 mins
-    - cron: '*/5 12-17 * * 1-5'
+    # Temporary test schedule: Runs every 5 minutes 24/7 to capture all live @SQY_IDFM tweets
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Allows manual trigger anytime from GitHub UI
 
 jobs:

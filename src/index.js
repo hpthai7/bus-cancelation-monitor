@@ -8,8 +8,11 @@ const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || "";
 const IS_TEST = process.argv.includes("--test");
 const IS_MANUAL_RUN = process.env.GITHUB_EVENT_NAME === "workflow_dispatch" || process.argv.includes("--force");
 
+// Temporary mode to monitor ALL lines & ALL trips from BOTH IDFM API & @SQY_IDFM Twitter!
+const ALL_TRIPS_TEMPORARY_MODE = true;
+
 async function run() {
-  console.log("🚀 Starting IDFM Bus 5150 Monitor check...");
+  console.log("🚀 Starting IDFM Bus Monitor check (All-Trips Temporary Test Mode - IDFM API + Twitter)...");
 
   if (IS_TEST) {
     console.log("🧪 TEST MODE: Sending sample Discord test alert...");
@@ -25,20 +28,20 @@ async function run() {
     return;
   }
 
-  // 1. Check IDFM PRIM Open Data API
-  const idfmAlerts = await checkIdfmRealtimeAlerts();
+  // 1. Check IDFM PRIM Open Data API (All Trips Mode)
+  const idfmAlerts = await checkIdfmRealtimeAlerts(ALL_TRIPS_TEMPORARY_MODE);
 
-  // 2. Check Twitter / X Feed (@SQY_IDFM)
-  const twitterAlerts = await checkTwitterAlerts();
+  // 2. Check Twitter / X Feed (@SQY_IDFM) (All Trips Mode)
+  const twitterAlerts = await checkTwitterAlerts(ALL_TRIPS_TEMPORARY_MODE);
 
   const rawAlerts = [...idfmAlerts, ...twitterAlerts];
 
-  // Deduplicate alerts by trip key so you only get ONE single notification per canceled trip!
+  // Deduplicate alerts by title/description
   const uniqueAlertsMap = new Map();
   for (const alert of rawAlerts) {
     const key = alert.tripInfo 
-      ? `${alert.tripInfo.direction}-${alert.tripInfo.gaudi}` 
-      : alert.description.substring(0, 50);
+      ? `${alert.title}-${alert.tripInfo.gaudi}` 
+      : alert.description.substring(0, 60);
       
     if (!uniqueAlertsMap.has(key)) {
       uniqueAlertsMap.set(key, alert);
@@ -48,30 +51,29 @@ async function run() {
   const deduplicatedAlerts = Array.from(uniqueAlertsMap.values());
 
   if (deduplicatedAlerts.length > 0) {
-    console.log(`🚨 Detected ${deduplicatedAlerts.length} unique canceled trip alert(s)! Dispatching to Discord...`);
+    console.log(`🚨 Detected ${deduplicatedAlerts.length} cancellation alert(s)! Dispatching to Discord...`);
     for (const alert of deduplicatedAlerts) {
       await sendDiscordAlert(alert, DISCORD_WEBHOOK_URL);
     }
-    console.log("🎉 Unique canceled trip alerts sent to Discord.");
+    console.log("🎉 Cancellation alerts sent to Discord.");
     return;
   }
 
-  // If no canceled trips were found...
-  console.log("✅ Check finished. No canceled trips detected for Bus 5150 in active commute windows.");
+  console.log("✅ Check finished. No cancellation alerts detected at this moment.");
 
   // If triggered MANUALLY by user ("Run workflow" button), send a status report to Discord!
   if (IS_MANUAL_RUN) {
     console.log("📱 Manual run detected: Sending status report to Discord...");
     await sendDiscordAlert({
-      title: "🟢 Vérification Manuelle Bus 5150",
-      description: "Aucun trajet supprimé détecté. Tous les bus 5150 de vos plages horaires circulent normalement.",
-      source: "Vérification Manuelle • IDFM 5150 Monitor",
+      title: "🟢 Vérification Manuelle - Monitor Actif (IDFM API + Twitter)",
+      description: "Le moniteur temporaire 'Tous Trajets' (IDFM API & Twitter @SQY_IDFM) est actif et vérifie toutes les alertes toutes les 5 minutes.",
+      source: "Vérification Manuelle • Mode Test IDFM API + Twitter",
       color: 0x10B981 // Green
     }, DISCORD_WEBHOOK_URL);
   }
 }
 
 run().catch(err => {
-  console.error("❌ Unexpected error running IDFM Bus 5150 Monitor:", err);
+  console.error("❌ Unexpected error running IDFM Bus Monitor:", err);
   process.exit(1);
 });
