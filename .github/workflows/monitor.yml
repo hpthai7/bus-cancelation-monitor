@@ -9,14 +9,11 @@ on:
 jobs:
   check-bus-5150:
     runs-on: ubuntu-latest
+    container:
+      image: node:22-alpine
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
 
       - name: Install Dependencies
         run: npm install --production
